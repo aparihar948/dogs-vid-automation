@@ -103,7 +103,7 @@ jobs:
     
     # Step 8: Run the main Python script
     - name: 🚀 Generate and Upload Pet Video
-      run: python pet_git.py
+      run: python dogs_git.py
       env:
         GITHUB_ACTIONS: true
 
