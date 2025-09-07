@@ -69,19 +69,30 @@ jobs:
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/happy_music_2.mp3" "pets_music/happy_music_2.mp3"
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/happy_music_1.mp3" "pets_music/happy_music_1.mp3"
         
-        # Final verification
+        # Final verification - simplified
         echo "🔍 Verifying all downloaded files..."
-        total_files=0
-        for file in dogs_temp/*.mp4 pets_music/*.mp3; do
+        
+        # Check video files
+        for file in dogs_temp/dog_run.mp4 dogs_temp/dog_ball.mp4 dogs_temp/2_dogs_win.mp4 dogs_temp/2_dog.mp4 dogs_temp/like_subscribe.mp4; do
           if [ -f "$file" ] && [ -s "$file" ]; then
-            ((total_files++))
             echo "  ✅ $file"
           else
             echo "  ❌ Missing or empty: $file"
             exit 1
           fi
         done
-        echo "✅ All $total_files media files downloaded and verified successfully"
+        
+        # Check music files  
+        for file in pets_music/travel.mp3 pets_music/music_happy_1.mp3 pets_music/happy_music_4.mp3 pets_music/happy_music_3.mp3 pets_music/happy_music_2.mp3 pets_music/happy_music_1.mp3; do
+          if [ -f "$file" ] && [ -s "$file" ]; then
+            echo "  ✅ $file"
+          else
+            echo "  ❌ Missing or empty: $file"
+            exit 1
+          fi
+        done
+        
+        echo "✅ All 11 media files verified successfully"
 
     # Step 3: Install the custom font for bold text (optional)
     - name: 📦 Install Custom Font
