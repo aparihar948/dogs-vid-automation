@@ -256,6 +256,8 @@ def generate_video_with_music(part1: str, part2: str, output_filename: str):
                 del final_video
         except:
             pass  # Ignore cleanup errors
+
+            
 def log_to_sheet(part1, part2, title, filename, status):
     """Adds the details of the generated video to the Google Sheet."""
     print(f"✍️ Logging details to Google Sheet...")
