@@ -125,73 +125,137 @@ def generate_video_with_music(part1: str, part2: str, output_filename: str):
     MAIN_VIDEO_DURATION = 12
     MUSIC_FOLDER = 'pets_music'
     BACKGROUND_FOLDER = 'dogs_temp'
-    OUTRO_FILENAME = "dogs_temp/like_subscribe.mp4"
+    OUTRO_FILENAME = "like_subscribe.mp4"
     
+    # Get outro duration first
     try:
         outro_clip_path = os.path.join(BACKGROUND_FOLDER, OUTRO_FILENAME)
-        with VideoFileClip(outro_clip_path) as temp_clip:
-            OUTRO_DURATION = temp_clip.duration
+        temp_clip = VideoFileClip(outro_clip_path)
+        OUTRO_DURATION = temp_clip.duration
+        temp_clip.close()  # Important: close the temporary clip
+        del temp_clip
     except Exception as e:
         sys.exit(f"❌ ERROR: Could not find '{OUTRO_FILENAME}'. Details: {e}")
         
     TOTAL_DURATION = MAIN_VIDEO_DURATION + OUTRO_DURATION
 
+    # Select media files
     try:
         music_files = [f for f in os.listdir(MUSIC_FOLDER) if f.endswith('.mp3')]
         chosen_music_path = os.path.join(MUSIC_FOLDER, random.choice(music_files))
         print(f"🎵 Using music: {chosen_music_path}")
         
-        video_files = sorted([f for f in os.listdir(BACKGROUND_FOLDER) if f.endswith(('.mp4', '.mov')) and f != OUTRO_FILENAME])
-        if not video_files: sys.exit(f"❌ ERROR: No background videos found.")
+        video_files = sorted([f for f in os.listdir(BACKGROUND_FOLDER) 
+                             if f.endswith(('.mp4', '.mov')) and f != OUTRO_FILENAME])
+        if not video_files: 
+            sys.exit(f"❌ ERROR: No background videos found.")
 
         state_file = os.path.join(BACKGROUND_FOLDER, 'last_video_index.txt')
         last_index = -1
         if os.path.exists(state_file):
             with open(state_file, 'r') as f:
-                try: last_index = int(f.read())
-                except (ValueError, TypeError): last_index = -1
+                try: 
+                    last_index = int(f.read())
+                except (ValueError, TypeError): 
+                    last_index = -1
         
         next_index = (last_index + 1) % len(video_files)
         chosen_video_path = os.path.join(BACKGROUND_FOLDER, video_files[next_index])
-        with open(state_file, 'w') as f: f.write(str(next_index))
+        with open(state_file, 'w') as f: 
+            f.write(str(next_index))
         print(f"🔄 Sequentially selected video #{next_index + 1}: {chosen_video_path}")
 
     except Exception as e:
         sys.exit(f"❌ ERROR: Could not find media files. Details: {e}")
 
-    music_clip = AudioFileClip(chosen_music_path)
-    if music_clip.duration < TOTAL_DURATION:
-        music_clip = music_clip.fx(vfx.loop, duration=TOTAL_DURATION)
-    else:
-        music_clip = music_clip.subclip(0, TOTAL_DURATION)
+    # Create clips - all should be managed properly
+    music_clip = None
+    main_background = None
+    final_outro = None
+    final_video = None
+    
+    try:
+        # Load and prepare music
+        music_clip = AudioFileClip(chosen_music_path)
+        if music_clip.duration < TOTAL_DURATION:
+            music_clip = music_clip.fx(vfx.loop, duration=TOTAL_DURATION)
+        else:
+            music_clip = music_clip.subclip(0, TOTAL_DURATION)
 
-    with VideoFileClip(chosen_video_path) as background_clip:
+        # Load and prepare background video
+        background_clip = VideoFileClip(chosen_video_path)
         if background_clip.duration < MAIN_VIDEO_DURATION:
             background_clip = background_clip.loop(duration=MAIN_VIDEO_DURATION)
-        main_background = background_clip.subclip(0, MAIN_VIDEO_DURATION).resize(height=1920).crop(x_center=background_clip.w/2, width=1080)
+        
+        main_background = background_clip.subclip(0, MAIN_VIDEO_DURATION).resize(height=1920).crop(
+            x_center=background_clip.w/2, width=1080)
+        
+        # Close the original background clip as we have our processed version
+        background_clip.close()
+        del background_clip
 
-    print("   Adding text layers...")
-    heading_text = "Dog Facts"
-    heading_bg = ColorClip(size=(int(1080 * 0.7), 110), color=(255, 255, 255)).set_position(('center', int(1920 * 0.20))).set_duration(MAIN_VIDEO_DURATION)
-    heading_clip = TextClip(heading_text, fontsize=75, color='black', font='Arial-Rounded-MT-Bold', size=heading_bg.size).set_position(heading_bg.pos).set_duration(MAIN_VIDEO_DURATION)
+        print("   Adding text layers...")
+        # Create text elements
+        heading_text = "Dog Facts"
+        heading_bg = ColorClip(size=(int(1080 * 0.7), 110), color=(255, 255, 255)).set_position(
+            ('center', int(1920 * 0.20))).set_duration(MAIN_VIDEO_DURATION)
+        
+        heading_clip = TextClip(heading_text, fontsize=75, color='black', 
+                               font='Arial-Rounded-MT-Bold', size=heading_bg.size).set_position(
+                               heading_bg.pos).set_duration(MAIN_VIDEO_DURATION)
 
-    quote_clip1 = TextClip(part1, fontsize=80, color='white', font='Arial-Rounded-MT-Bold', stroke_color='black', stroke_width=3, size=(1080 * 0.9, None), method='caption').set_position('center').set_duration(6).fx(vfx.fadein, 1).fx(vfx.fadeout, 0.5)
-    quote_clip2 = TextClip(part2, fontsize=80, color='white', font='Arial-Rounded-MT-Bold', stroke_color='black', stroke_width=3, size=(1080 * 0.9, None), method='caption').set_position('center').set_start(6).set_duration(6).fx(vfx.fadein, 0.5)
+        quote_clip1 = TextClip(part1, fontsize=80, color='white', 
+                              font='Arial-Rounded-MT-Bold', stroke_color='black', 
+                              stroke_width=3, size=(1080 * 0.9, None), 
+                              method='caption').set_position('center').set_duration(6).fx(
+                              vfx.fadein, 1).fx(vfx.fadeout, 0.5)
+        
+        quote_clip2 = TextClip(part2, fontsize=80, color='white', 
+                              font='Arial-Rounded-MT-Bold', stroke_color='black', 
+                              stroke_width=3, size=(1080 * 0.9, None), 
+                              method='caption').set_position('center').set_start(6).set_duration(6).fx(
+                              vfx.fadein, 0.5)
 
-    main_video = CompositeVideoClip([main_background, heading_bg, heading_clip, quote_clip1, quote_clip2]).set_duration(MAIN_VIDEO_DURATION)
+        # Create main video composite
+        main_video = CompositeVideoClip([main_background, heading_bg, heading_clip, 
+                                       quote_clip1, quote_clip2]).set_duration(MAIN_VIDEO_DURATION)
 
-    print("   Adding 'Like & Subscribe' outro...")
-    with VideoFileClip(outro_clip_path) as outro_clip:
-        final_outro = outro_clip.resize(height=1920).crop(x_center=outro_clip.w/2, width=1080)
+        print("   Adding 'Like & Subscribe' outro...")
+        # Load outro video
+        final_outro = VideoFileClip(outro_clip_path).resize(height=1920).crop(
+            x_center=VideoFileClip(outro_clip_path).w/2, width=1080)
+        
+        # Concatenate main video and outro
+        final_video = concatenate_videoclips([main_video, final_outro])
+        final_video = final_video.set_audio(music_clip)
+
+        print("   Compositing final video...")
+        final_video.write_videofile(output_filename, fps=24, codec='libx264', 
+                                   threads=2, preset='ultrafast')  # Use fewer threads for stability
+        
+        print(f"✅ Video saved successfully as {output_filename}")
+        
+    except Exception as e:
+        print(f"❌ ERROR during video generation: {e}")
+        raise e
     
-    final_video = concatenate_videoclips([main_video, final_outro])
-    final_video = final_video.set_audio(music_clip)
-
-    print("   Compositing final video...")
-    final_video.write_videofile(output_filename, fps=24, codec='libx264', threads=4)
-    final_video.close()
-    print(f"✅ Video saved successfully as {output_filename}")
-
+    finally:
+        # Clean up all resources
+        try:
+            if music_clip:
+                music_clip.close()
+                del music_clip
+            if main_background:
+                main_background.close()
+                del main_background
+            if final_outro:
+                final_outro.close()
+                del final_outro
+            if final_video:
+                final_video.close()
+                del final_video
+        except:
+            pass  # Ignore cleanup errors
 def log_to_sheet(part1, part2, title, filename, status):
     """Adds the details of the generated video to the Google Sheet."""
     print(f"✍️ Logging details to Google Sheet...")
