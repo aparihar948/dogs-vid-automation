@@ -125,7 +125,7 @@ def generate_video_with_music(part1: str, part2: str, output_filename: str):
     MAIN_VIDEO_DURATION = 12
     MUSIC_FOLDER = 'pets_music'
     BACKGROUND_FOLDER = 'dogs_temp'
-    OUTRO_FILENAME = "like_subscribe.mp4"
+    OUTRO_FILENAME = "dogs_temp/like_subscribe.mp4"
     
     try:
         outro_clip_path = os.path.join(BACKGROUND_FOLDER, OUTRO_FILENAME)
