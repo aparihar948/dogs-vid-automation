@@ -2,8 +2,8 @@ name: Dog Facts Video Automation
 
 on:
   schedule:
-    # Runs every day at a time of your choosing
-    - cron: '30 3 * * *' # Example: 8:00 AM IST
+    # Runs every day at 3:30 AM UTC (adjust timezone as needed)
+    - cron: '30 3 * * *'
   
   # Allow manual triggering from GitHub UI
   workflow_dispatch:
@@ -11,67 +11,88 @@ on:
 jobs:
   generate-dog-video:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     permissions:
       contents: write
       
     steps:
     # Step 1: Checkout the repository code
-    - name: 📥 Checkout repository
+    - name: 🔥 Checkout repository
       uses: actions/checkout@v4
     
     # Step 2: Download your editing assets from the GitHub Release
-    - name: 📥 Download Media Assets from Release
-      env:
-        # Use the Personal Access Token for private repositories
-        GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+    - name: 🔥 Download Media Assets from Release
       run: |
         echo "Creating media directories..."
         mkdir -p dogs_temp
         mkdir -p pets_music
         
-        # A robust function to download files
+        # Function to download files with verification
         download_file() {
-          local url="$1"; local output="$2"
+          local url="$1"
+          local output="$2"
           echo "Downloading: $output"
-          if curl -L --fail -H "Authorization: Bearer $GITHUB_TOKEN" -o "$output" "$url"; then
-            echo "✅ Successfully downloaded $output"
+          
+          # For public repos, we don't need authentication token
+          if curl -L --fail --retry 3 --retry-delay 5 -o "$output" "$url"; then
+            # Verify file was downloaded and has content
+            if [ -s "$output" ]; then
+              echo "✅ Successfully downloaded $output ($(stat -f%z "$output" 2>/dev/null || stat -c%s "$output") bytes)"
+            else
+              echo "❌ Downloaded file is empty: $output"
+              exit 1
+            fi
           else
-            echo "❌ Failed to download $output"; exit 1
+            echo "❌ Failed to download $output"
+            exit 1
           fi
         }
 
         # --- Downloading Video Templates ---
-        echo "Downloading video templates..."
+        echo "📹 Downloading video templates..."
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/dog_run.mp4" "dogs_temp/dog_run.mp4"
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/dog_ball.mp4" "dogs_temp/dog_ball.mp4"
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/2_dogs_win.mp4" "dogs_temp/2_dogs_win.mp4"
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/2_dog.mp4" "dogs_temp/2_dog.mp4"
         
         # --- Downloading the Outro Video ---
-        echo "Downloading outro video..."
+        echo "🎬 Downloading outro video..."
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/like_subscribe.mp4" "dogs_temp/like_subscribe.mp4"
 
         # --- Downloading Music Files ---
-        echo "Downloading music files..."
+        echo "🎵 Downloading music files..."
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/travel.mp3" "pets_music/travel.mp3"
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/music_happy_1.mp3" "pets_music/music_happy_1.mp3"
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/happy_music_4.mp3" "pets_music/happy_music_4.mp3"
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/happy_music_3.mp3" "pets_music/happy_music_3.mp3"
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/happy_music_2.mp3" "pets_music/happy_music_2.mp3"
         download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/happy_music_1.mp3" "pets_music/happy_music_1.mp3"
+        
+        # Final verification
+        echo "🔍 Verifying all downloaded files..."
+        total_files=0
+        for file in dogs_temp/*.mp4 pets_music/*.mp3; do
+          if [ -f "$file" ] && [ -s "$file" ]; then
+            ((total_files++))
+            echo "  ✅ $file"
+          else
+            echo "  ❌ Missing or empty: $file"
+            exit 1
+          fi
+        done
+        echo "✅ All $total_files media files downloaded and verified successfully"
 
-    # Step 3: Install the custom font for bold text
+    # Step 3: Install the custom font for bold text (optional)
     - name: 📦 Install Custom Font
       run: |
         if [ -f "fonts/ARLRDBD.TTF" ]; then
           sudo mkdir -p /usr/share/fonts/truetype/custom
           sudo cp fonts/ARLRDBD.TTF /usr/share/fonts/truetype/custom/
           sudo fc-cache -f -v
-          echo "✅ Custom font installed."
+          echo "✅ Custom font installed successfully"
         else
-          echo "⚠️ Font file not found, text may not be bold."
+          echo "ℹ️  No custom font found, using system fonts (Arial-Bold fallback)"
         fi
 
     # Step 4: Set up Python
@@ -79,49 +100,131 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.12'
+        cache: 'pip'
     
     # Step 5: Install System Dependencies
     - name: 📦 Install System Dependencies
       run: |
-        sudo apt-get update
+        sudo apt-get update -qq
         sudo apt-get install -y ffmpeg libjpeg-dev zlib1g-dev imagemagick
+        
+        # Configure ImageMagick for video processing
         sudo sed -i 's/rights="none"/rights="read,write"/g' /etc/ImageMagick-6/policy.xml
+        
+        # Optimize system for video processing
+        echo "vm.overcommit_memory=1" | sudo tee -a /etc/sysctl.conf
+        sudo sysctl -p
+        
+        echo "✅ System dependencies installed and configured"
 
     # Step 6: Install Python dependencies
     - name: 🔧 Install Python Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        echo "✅ Python dependencies installed"
     
     # Step 7: Create Google credential files from secrets
     - name: 🔐 Create Credentials from Secrets
       run: |
+        echo "Creating credential files..."
         echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
-        echo '${{ secrets.CLIENT_SERETS }}' > client_secrets.json
+        echo '${{ secrets.CLIENT_SECRETS }}' > client_secrets.json
         echo '${{ secrets.TOKEN_PICKLE_BASE64 }}' | base64 -d > token.pickle
         echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" > .env
+        
+        # Verify files were created
+        for file in credentials.json client_secrets.json token.pickle .env; do
+          if [ -f "$file" ] && [ -s "$file" ]; then
+            echo "✅ Created: $file"
+          else
+            echo "❌ Failed to create: $file"
+            exit 1
+          fi
+        done
+        echo "✅ All credential files created successfully"
     
     # Step 8: Run the main Python script
-    - name: 🚀 Generate and Upload Pet Video
-      run: python dogs_git.py
+    - name: 🚀 Generate and Upload Dog Facts Video
+      run: |
+        echo "🎬 Starting video generation and upload process..."
+        
+        # Set optimal environment variables for video processing
+        export MOVIEPY_TEMP_DIR="/tmp"
+        export PYTHONHASHSEED=0
+        export PYTHONUNBUFFERED=1
+        
+        # Run the main script
+        python dogs_git.py
+        
+        echo "✅ Video generation and upload completed"
       env:
         GITHUB_ACTIONS: true
 
-    # Step 9: Commit and push the updated index file
+    # Step 9: Clean up temporary files to save space
+    - name: 🧹 Clean up temporary files
+      if: always()
+      run: |
+        echo "Cleaning up temporary files..."
+        
+        # Remove MoviePy temp files
+        rm -rf /tmp/moviepy_* 2>/dev/null || true
+        rm -rf /tmp/tmp* 2>/dev/null || true
+        
+        # Remove generated video file to save space (already uploaded to YouTube)
+        rm -f quote_*.mp4 2>/dev/null || true
+        
+        # Remove sensitive credential files
+        rm -f credentials.json client_secrets.json token.pickle .env 2>/dev/null || true
+        
+        echo "✅ Cleanup completed"
+
+    # Step 10: Commit and push the updated index file
     - name: 💾 Commit and Push Updated Index
       run: |
+        echo "Updating repository with new video index..."
+        
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add dogs_temp/last_video_index.txt
-        git diff-index --quiet HEAD || git commit -m "Update last used video index"
-        git push
         
-    # Step 10: Save the final video as a temporary artifact (optional backup)
-    - name: 💾 Save Edited Video as Artifact
-      if: always()
+        # Add the updated index file if it exists
+        if [ -f "dogs_temp/last_video_index.txt" ]; then
+          git add dogs_temp/last_video_index.txt
+          
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "ℹ️  No changes to commit"
+          else
+            git commit -m "🤖 Update video index after automated upload [skip ci]"
+            git push
+            echo "✅ Updated video index committed and pushed"
+          fi
+        else
+          echo "⚠️  Index file not found, skipping commit"
+        fi
+        
+    # Step 11: Upload artifacts (optional - for debugging)
+    - name: 💾 Save Workflow Logs as Artifact
+      if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: pet-video-${{ github.run_number }}
-        path: "quote_*.mp4"
-        retention-days: 7
+        name: workflow-logs-${{ github.run_number }}
+        path: |
+          /tmp/moviepy_*
+          *.log
+        retention-days: 3
 
+    # Step 12: Success notification
+    - name: 🎉 Success Summary
+      if: success()
+      run: |
+        echo "🎉 =================================="
+        echo "🎉 DOG FACTS VIDEO AUTOMATION SUCCESS!"
+        echo "🎉 =================================="
+        echo "✅ Video generated successfully"
+        echo "✅ Uploaded to YouTube"
+        echo "✅ Google Sheets updated"
+        echo "✅ Repository index updated"
+        echo ""
+        echo "📊 Workflow completed in ${{ job.status }} status"
+        echo "🕒 Next scheduled run: Daily at 3:30 AM UTC"
