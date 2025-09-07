@@ -119,8 +119,9 @@ jobs:
     # Step 10: Save the final video as a temporary artifact (optional backup)
     - name: 💾 Save Edited Video as Artifact
       if: always()
-      uses: a-actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4
       with:
         name: pet-video-${{ github.run_number }}
         path: "quote_*.mp4"
         retention-days: 7
+
