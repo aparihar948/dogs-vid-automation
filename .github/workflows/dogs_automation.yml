@@ -1,4 +1,4 @@
-name: Pet Facts Video Automation
+name: Dog Facts Video Automation
 
 on:
   schedule:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  generate-pet-video:
+  generate-dog-video:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -21,15 +21,17 @@ jobs:
     - name: 📥 Checkout repository
       uses: actions/checkout@v4
     
-    # Step 2: Download your editing assets from a GitHub Release
+    # Step 2: Download your editing assets from the GitHub Release
     - name: 📥 Download Media Assets from Release
       env:
+        # Use the Personal Access Token for private repositories
         GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
       run: |
         echo "Creating media directories..."
         mkdir -p dogs_temp
         mkdir -p pets_music
         
+        # A robust function to download files
         download_file() {
           local url="$1"; local output="$2"
           echo "Downloading: $output"
@@ -40,24 +42,29 @@ jobs:
           fi
         }
 
-        # --- IMPORTANT: EDIT THIS SECTION ---
-        # --- Update the URLs and filenames to match ALL your assets in the release ---
-        
+        # --- Downloading Video Templates ---
         echo "Downloading video templates..."
-        # download_file "https://github.com/YourUsername/pet-video-automation/releases/download/v1.0-assets/your_dog_video1.mp4" "dogs_temp/your_dog_video1.mp4"
-        # download_file "https://github.com/YourUsername/pet-video-automation/releases/download/v1.0-assets/your_dog_video2.mp4" "dogs_temp/your_dog_video2.mp4"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/dog_run.mp4" "dogs_temp/dog_run.mp4"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/dog_ball.mp4" "dogs_temp/dog_ball.mp4"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/2_dogs_win.mp4" "dogs_temp/2_dogs_win.mp4"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/2_dog.mp4" "dogs_temp/2_dog.mp4"
         
+        # --- Downloading the Outro Video ---
         echo "Downloading outro video..."
-        # download_file "https://github.com/YourUsername/pet-video-automation/releases/download/v1.0-assets/like_subscribe.mp4" "dogs_temp/like_subscribe.mp4"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/like_subscribe.mp4" "dogs_temp/like_subscribe.mp4"
 
+        # --- Downloading Music Files ---
         echo "Downloading music files..."
-        # download_file "https://github.com/YourUsername/pet-video-automation/releases/download/v1.0-assets/your_pet_music1.mp3" "pets_music/your_pet_music1.mp3"
-        # download_file "https://github.com/YourUsername/pet-video-automation/releases/download/v1.0-assets/your_pet_music2.mp3" "pets_music/your_pet_music2.mp3"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/travel.mp3" "pets_music/travel.mp3"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/music_happy_1.mp3" "pets_music/music_happy_1.mp3"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/happy_music_4.mp3" "pets_music/happy_music_4.mp3"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/happy_music_3.mp3" "pets_music/happy_music_3.mp3"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/happy_music_2.mp3" "pets_music/happy_music_2.mp3"
+        download_file "https://github.com/aparihar948/dogs-vid-automation/releases/download/v1.0-assets/happy_music_1.mp3" "pets_music/happy_music_1.mp3"
 
     # Step 3: Install the custom font for bold text
     - name: 📦 Install Custom Font
       run: |
-        # This assumes you have a 'fonts' folder with 'ARLRDBD.TTF' in your repo
         if [ -f "fonts/ARLRDBD.TTF" ]; then
           sudo mkdir -p /usr/share/fonts/truetype/custom
           sudo cp fonts/ARLRDBD.TTF /usr/share/fonts/truetype/custom/
@@ -73,7 +80,7 @@ jobs:
       with:
         python-version: '3.12'
     
-    # Step 5: Install System Dependencies (like ffmpeg)
+    # Step 5: Install System Dependencies
     - name: 📦 Install System Dependencies
       run: |
         sudo apt-get update
@@ -90,7 +97,7 @@ jobs:
     - name: 🔐 Create Credentials from Secrets
       run: |
         echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
-        echo '${{ secrets.CLIENT_SECRETS }}' > client_secrets.json
+        echo '${{ secrets.CLIENT_SERETS }}' > client_secrets.json
         echo '${{ secrets.TOKEN_PICKLE_BASE64 }}' | base64 -d > token.pickle
         echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" > .env
     
@@ -112,7 +119,7 @@ jobs:
     # Step 10: Save the final video as a temporary artifact (optional backup)
     - name: 💾 Save Edited Video as Artifact
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: a-actions/upload-artifact@v4
       with:
         name: pet-video-${{ github.run_number }}
         path: "quote_*.mp4"
