@@ -1,0 +1,2 @@
+space_temp/*.mp4 filter=lfs diff=lfs merge=lfs -text
+space_music/*.mp3 filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,119 @@
+name: Pet Facts Video Automation
+
+on:
+  schedule:
+    # Runs every day at a time of your choosing
+    - cron: '30 3 * * *' # Example: 8:00 AM IST
+  
+  # Allow manual triggering from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  generate-pet-video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: write
+      
+    steps:
+    # Step 1: Checkout the repository code
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+    
+    # Step 2: Download your editing assets from a GitHub Release
+    - name: 📥 Download Media Assets from Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+      run: |
+        echo "Creating media directories..."
+        mkdir -p dogs_temp
+        mkdir -p pets_music
+        
+        download_file() {
+          local url="$1"; local output="$2"
+          echo "Downloading: $output"
+          if curl -L --fail -H "Authorization: Bearer $GITHUB_TOKEN" -o "$output" "$url"; then
+            echo "✅ Successfully downloaded $output"
+          else
+            echo "❌ Failed to download $output"; exit 1
+          fi
+        }
+
+        # --- IMPORTANT: EDIT THIS SECTION ---
+        # --- Update the URLs and filenames to match ALL your assets in the release ---
+        
+        echo "Downloading video templates..."
+        # download_file "https://github.com/YourUsername/pet-video-automation/releases/download/v1.0-assets/your_dog_video1.mp4" "dogs_temp/your_dog_video1.mp4"
+        # download_file "https://github.com/YourUsername/pet-video-automation/releases/download/v1.0-assets/your_dog_video2.mp4" "dogs_temp/your_dog_video2.mp4"
+        
+        echo "Downloading outro video..."
+        # download_file "https://github.com/YourUsername/pet-video-automation/releases/download/v1.0-assets/like_subscribe.mp4" "dogs_temp/like_subscribe.mp4"
+
+        echo "Downloading music files..."
+        # download_file "https://github.com/YourUsername/pet-video-automation/releases/download/v1.0-assets/your_pet_music1.mp3" "pets_music/your_pet_music1.mp3"
+        # download_file "https://github.com/YourUsername/pet-video-automation/releases/download/v1.0-assets/your_pet_music2.mp3" "pets_music/your_pet_music2.mp3"
+
+    # Step 3: Install the custom font for bold text
+    - name: 📦 Install Custom Font
+      run: |
+        # This assumes you have a 'fonts' folder with 'ARLRDBD.TTF' in your repo
+        if [ -f "fonts/ARLRDBD.TTF" ]; then
+          sudo mkdir -p /usr/share/fonts/truetype/custom
+          sudo cp fonts/ARLRDBD.TTF /usr/share/fonts/truetype/custom/
+          sudo fc-cache -f -v
+          echo "✅ Custom font installed."
+        else
+          echo "⚠️ Font file not found, text may not be bold."
+        fi
+
+    # Step 4: Set up Python
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    # Step 5: Install System Dependencies (like ffmpeg)
+    - name: 📦 Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg libjpeg-dev zlib1g-dev imagemagick
+        sudo sed -i 's/rights="none"/rights="read,write"/g' /etc/ImageMagick-6/policy.xml
+
+    # Step 6: Install Python dependencies
+    - name: 🔧 Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    # Step 7: Create Google credential files from secrets
+    - name: 🔐 Create Credentials from Secrets
+      run: |
+        echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+        echo '${{ secrets.CLIENT_SECRETS }}' > client_secrets.json
+        echo '${{ secrets.TOKEN_PICKLE_BASE64 }}' | base64 -d > token.pickle
+        echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" > .env
+    
+    # Step 8: Run the main Python script
+    - name: 🚀 Generate and Upload Pet Video
+      run: python pet_git.py
+      env:
+        GITHUB_ACTIONS: true
+
+    # Step 9: Commit and push the updated index file
+    - name: 💾 Commit and Push Updated Index
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add dogs_temp/last_video_index.txt
+        git diff-index --quiet HEAD || git commit -m "Update last used video index"
+        git push
+        
+    # Step 10: Save the final video as a temporary artifact (optional backup)
+    - name: 💾 Save Edited Video as Artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pet-video-${{ github.run_number }}
+        path: "quote_*.mp4"
+        retention-days: 7
